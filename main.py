@@ -6,7 +6,8 @@ Created on Wed Apri 7 16:41:28 2021
 
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]=''
+os.environ["CUDA_VISIBLE_DEVICES"]='0'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"
 import tensorflow as tf
 physical_devices = tf.config.list_physical_devices('GPU')
 availale_GPUs = len(physical_devices) 
@@ -39,13 +40,13 @@ def main():
         Define training pipelines
     """
 
-    dataset_train, dataset_valid = generate_default_training_pipeline(tfr_path, channels, n_modes, validation_split, batch_size, shuffle_buffer, n_prefetch, cpu=True)
+    dataset_train, dataset_valid = generate_default_training_pipeline(tfr_path, channels, n_modes, validation_split, batch_size, shuffle_buffer, n_prefetch, cpu=False)
 
     """
         Define model
     """
 
-    model = model_cnn_mlp(channels, nz, nx, n_modes, cpu=True)
+    model = model_cnn_mlp(channels, nz, nx, n_modes, cpu=False)
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
     model_loss = tf.keras.losses.MeanSquaredError()
 
