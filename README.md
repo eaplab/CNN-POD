@@ -28,6 +28,7 @@ if __name__ == __main__:
 
 ## Publications
 This repository has been used in some manner in the following scientific publications:
+
 [1] Güemes, A., Discetti, S., & Ianiro, A. (2019). Sensing the turbulent large-scale motions with their wall signature. Physics of Fluids, 31(12), 125112.
 
 ## Authorship
