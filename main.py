@@ -48,7 +48,6 @@ def main():
 
     model = model_cnn_mlp(channels, nz, nx, n_modes, cpu=False)
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
-    model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_absolute_error'])
     model_loss = tf.keras.losses.MeanSquaredError()
 
     """
@@ -56,37 +55,6 @@ def main():
     """
 
     training_loop(dataset_train, dataset_valid, save_path, model_name, model, optimizer, model_loss, epochs)
-
-    # model_name = f"Ret_flow-reconstruction_yp{yp_flow:03d}"
-
-    # start_time = time.time()
-
-    # train_loss = tf.metrics.Mean()
-    # valid_loss = tf.metrics.Mean()
-
-    # for epoch in range(1, epochs + 1):
-
-        # train_loss.reset_states()
-
-        # for (X_target, Y_target) in dataset_train:
-  
-            # pred_loss, mae = model.train_on_batch(X_target, Y_target)
-            # train_loss.update_state(pred_loss)
-            
-        # for (X_target, Y_target) in dataset_valid:
-            # valid_pred_loss, valid_mae = model.test_on_batch(X_target, Y_target)
-            # valid_loss.update_state(valid_pred_loss)
-        
-        # end_time = time.time()
-
-        # if epoch > 10:
-        
-           #  model.optimizer.lr = 0.001 * tf.math.exp(0.1 * (10 - epoch))
-
-        # print(f'Epoch {epoch:04d}/{epochs:04d}, loss: {train_loss.result().numpy()}, val_loss: {valid_loss.result().numpy()}, elapsed time from start: {end_time - start_time}')
-
-    # predictor_name = models_path + model_name + '_predictor.tf'
-    # predictor.save(predictor_name)
 
     return
 

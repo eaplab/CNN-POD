@@ -11,6 +11,12 @@ from tensorflow.keras import layers
 
 
 def model_cnn_mlp(channels, nz, nx, n_modes, cpu=False):
+    """
+        Function to build up a convolutional neural network
+
+    :param channels: number of wall quantities used as inputs.
+    :return: Tensorflow model
+    """
 
     if cpu:
 
