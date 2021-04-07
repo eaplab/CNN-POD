@@ -12,7 +12,7 @@ import scipy.io as sio
 import tensorflow as tf
 
 
-def generate_default_training_pipeline(tfr_path, channels, n_modes, validation_split=0.2, batch_size=8, shuffle_buffer=400, n_prefetch=4):
+def generate_default_training_pipeline(tfr_path, channels, n_modes, validation_split=0.2, batch_size=8, shuffle_buffer=400, n_prefetch=4, cpu=False):
 
     # List all files in tfr_path folder
 
@@ -91,12 +91,20 @@ def generate_default_training_pipeline(tfr_path, channels, n_modes, validation_s
         num_parallel_calls=tf.data.experimental.AUTOTUNE
     )
 
-    dataset_train = tfr_files_train_ds.map(lambda x: tf_parser_training(x, tfr_path, channels, n_modes), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    if cpu:
+
+        dataset_train = tfr_files_train_ds.map(lambda x: tf_parser_training_cpu(x, tfr_path, channels, n_modes), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset_valid = tfr_files_val_ds.map(lambda x: tf_parser_training_cpu(x, tfr_path, channels, n_modes), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+    else:
+
+        dataset_train = tfr_files_train_ds.map(lambda x: tf_parser_training(x, tfr_path, channels, n_modes), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset_valid = tfr_files_val_ds.map(lambda x: tf_parser_training(x, tfr_path, channels, n_modes), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
     dataset_train = dataset_train.shuffle(shuffle_buffer)
     dataset_train = dataset_train.batch(batch_size=batch_size)
     dataset_train = dataset_train.prefetch(n_prefetch)
-
-    dataset_valid = tfr_files_val_ds.map(lambda x: tf_parser_training(x, tfr_path, channels, n_modes), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    
     dataset_valid = dataset_valid.shuffle(shuffle_buffer)
     dataset_valid = dataset_valid.batch(batch_size=batch_size)
     dataset_valid = dataset_valid.prefetch(n_prefetch)
@@ -146,6 +154,54 @@ def tf_parser_training(rec, tfr_path, channels, n_modes):
     for i_comp in range(1, channels):
 
         inputs = tf.concat((inputs, tf.reshape((parsed_rec[f'wall_raw{i_comp+1}']-avgs_wall[i_comp])/stds_wall[i_comp],(1,nz, nx))),0)
+
+    outputs = parsed_rec['psi'][:n_modes]
+
+    return inputs, outputs
+
+
+@tf.function
+def tf_parser_training_cpu(rec, tfr_path, channels, n_modes):
+    '''
+    This is a parser function. It defines the template for
+    interpreting the examples you're feeding in. Basically, 
+    this function defines what the labels and data look like
+    for your labeled data. 
+    '''
+    features = {
+        'i_samp': tf.io.FixedLenFeature([], tf.int64),
+        'n_x': tf.io.FixedLenFeature([], tf.int64),
+        'n_z': tf.io.FixedLenFeature([], tf.int64),
+        'wall_raw1': tf.io.FixedLenSequenceFeature([], tf.float32, allow_missing=True),
+        'wall_raw2': tf.io.FixedLenSequenceFeature([], tf.float32, allow_missing=True),
+        'wall_raw3': tf.io.FixedLenSequenceFeature([], tf.float32, allow_missing=True),
+        'flow_raw1': tf.io.FixedLenSequenceFeature([], tf.float32, allow_missing=True),
+        'flow_raw2': tf.io.FixedLenSequenceFeature([], tf.float32, allow_missing=True),
+        'flow_raw3': tf.io.FixedLenSequenceFeature([], tf.float32, allow_missing=True),
+        'psi': tf.io.FixedLenSequenceFeature([], tf.float32, allow_missing=True)
+        }
+
+    parsed_rec = tf.io.parse_single_example(rec, features)
+
+    nx = tf.cast(parsed_rec['n_x'], tf.int32)
+    nz = tf.cast(parsed_rec['n_z'], tf.int32)
+
+    # Scaling data at wall
+
+    avg_wall = tfr_path + '/avg_wall.mat'
+
+    print('The inputs are normalized to have a unit Gaussian distribution')
+
+    data = sio.loadmat(avg_wall)
+
+    avgs_wall = tf.constant(data['mean_inputs'].astype(np.float32))
+    stds_wall = tf.constant(data['std_inputs'].astype(np.float32))
+
+    inputs = tf.reshape((parsed_rec['wall_raw1']-avgs_wall[0])/stds_wall[0],(nz, nx, 1))
+
+    for i_comp in range(1, channels):
+
+        inputs = tf.concat((inputs, tf.reshape((parsed_rec[f'wall_raw{i_comp+1}']-avgs_wall[i_comp])/stds_wall[i_comp],(nz, nx, 1))),-1)
 
     outputs = parsed_rec['psi'][:n_modes]
 

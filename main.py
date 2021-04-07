@@ -30,6 +30,7 @@ if physical_devices:
 import time
 from models import model_cnn_mlp
 from pipelines import generate_default_training_pipeline
+from training import training_loop
 
 
 def main():
@@ -38,31 +39,26 @@ def main():
         Define training pipelines
     """
 
-    dataset_train, dataset_valid = generate_default_training_pipeline(tfr_path, channels, n_modes, validation_split, batch_size, shuffle_buffer, n_prefetch)
+    dataset_train, dataset_valid = generate_default_training_pipeline(tfr_path, channels, n_modes, validation_split, batch_size, shuffle_buffer, n_prefetch, cpu=True)
 
     """
         Define model
     """
 
-    model = model_cnn_mlp(channels, nz, nx, n_modes)
-
-    """
-        Define training
-    """
+    model = model_cnn_mlp(channels, nz, nx, n_modes, cpu=True)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+    model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_absolute_error'])
+    model_loss = tf.keras.losses.MeanSquaredError()
 
     """
         Training loop
     """
 
+    # training_loop(dataset_train, dataset_valid, save_path, model_name, model, optimizer, model_loss, epochs)
+
     model_name = f"Ret_flow-reconstruction_yp{yp_flow:03d}"
 
     start_time = time.time()
-
-    optimizer = tf.keras.optimizers.Adam(
-        learning_rate=0.001,
-    )
-
-    model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_absolute_error'])
 
     train_loss = tf.metrics.Mean()
     valid_loss = tf.metrics.Mean()
@@ -84,12 +80,12 @@ def main():
 
         if epoch > 10:
         
-            predictor.optimizer.lr = 0.001 * tf.math.exp(0.1 * (10 - epoch))
+            model.optimizer.lr = 0.001 * tf.math.exp(0.1 * (10 - epoch))
 
         print(f'Epoch {epoch:04d}/{epochs:04d}, loss: {train_loss.result().numpy()}, val_loss: {valid_loss.result().numpy()}, elapsed time from start: {end_time - start_time}')
 
-    predictor_name = models_path + model_name + '_predictor.tf'
-    predictor.save(predictor_name)
+    # predictor_name = models_path + model_name + '_predictor.tf'
+    # predictor.save(predictor_name)
 
     return
 
@@ -104,6 +100,8 @@ if __name__ == "__main__":
     channels = 2 
     n_prefetch = 4
     batch_size = 50
+    save_path = ""
+    model_name = "test"
     tfr_path = "./data/"
     shuffle_buffer = 5000
     validation_split = 0.2
